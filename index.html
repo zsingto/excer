@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>SYSTEM: Daily Quest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070b14;
+    --panel:#0b1326;
+    --glow:#00d4ff;
+    --glow2:#6df0ff;
+    --accent:#35f2ff;
+    --danger:#ff4d5a;
+    --success:#49ffa6;
+    --warning:#ffd24d;
+    --muted:#9eb0cc;
+    --text:#e9f6ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:"Kanit", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 70% -10%, rgba(0,200,255,.12), transparent),
+                radial-gradient(800px 400px at 20% 100%, rgba(0,150,255,.10), transparent),
+                linear-gradient(180deg, #05080f, var(--bg));
+    color:var(--text); letter-spacing:.2px;
+    overflow-x:hidden;
+  }
+  /* scanline */
+  body:before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,.06), rgba(255,255,255,.06) 1px, transparent 2px, transparent 4px);
+    mix-blend-mode:overlay; opacity:.08;
+  }
+  /* container */
+  .wrap{max-width:980px; margin:24px auto; padding:16px}
+  .system-title{
+    font-family:"Orbitron", sans-serif; font-size:clamp(26px,4vw,42px);
+    text-align:center; letter-spacing:2px; margin:10px 0 18px;
+    text-shadow:0 0 12px var(--glow), 0 0 28px var(--glow2);
+  }
+  .panel{
+    position:relative; background:linear-gradient(180deg, rgba(20,32,64,.6), rgba(8,16,40,.8));
+    border:1px solid rgba(90,160,220,.35);
+    border-radius:14px; padding:16px; margin-bottom:16px; z-index:1;
+    box-shadow:0 0 0 2px rgba(0,212,255,.08) inset, 0 12px 40px rgba(0,0,0,.35);
+  }
+  .panel:before{
+    content:""; position:absolute; inset: -2px; border-radius:16px; z-index:-1;
+    background: conic-gradient(from 0deg, rgba(0,212,255,.5), rgba(0,212,255,.0), rgba(0,212,255,.5));
+    filter: blur(28px); opacity:.2;
+  }
+  .grid{
+    display:grid; gap:16px;
+    grid-template-columns:1fr;
+  }
+  @media (min-width:920px){
+    .grid{grid-template-columns:1.1fr .9fr}
+  }
+  h2,h3{margin:4px 0 10px; font-weight:700}
+  h2{font-size:20px}
+  h3{font-size:17px; color:var(--muted)}
+  .stats{display:flex; gap:10px; flex-wrap:wrap}
+  .stat{
+    flex:1 1 140px; padding:10px 12px; border:1px solid rgba(0,212,255,.25); border-radius:10px;
+    background:linear-gradient(180deg, rgba(0,212,255,.07), rgba(0,0,0,.0));
+  }
+  .stat .label{font-size:12px; color:var(--muted)}
+  .stat .value{font-size:20px; font-weight:700}
+  .hpbar, .expbar{
+    position:relative; height:14px; border-radius:9px; overflow:hidden; background:#0d1a2e; border:1px solid rgba(255,255,255,.08);
+  }
+  .hpbar > span{display:block; height:100%; background:linear-gradient(90deg,#ff6a75,#ff2f42); box-shadow:0 0 14px rgba(255,77,90,.6) inset}
+  .expbar > span{display:block; height:100%; background:linear-gradient(90deg,#27d3ff,#00aaff); box-shadow:0 0 14px rgba(0,212,255,.6) inset}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .muted{color:var(--muted); font-size:13px}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:10px 14px; border-radius:10px; border:1px solid rgba(0,212,255,.35);
+    background:linear-gradient(180deg, rgba(0,212,255,.15), rgba(0,212,255,.05));
+    color:var(--text); cursor:pointer; text-decoration:none; font-weight:600;
+    box-shadow:0 0 12px rgba(0,212,255,.25) inset, 0 4px 14px rgba(0,0,0,.35);
+  }
+  .btn:hover{filter:brightness(1.06)}
+  .btn.danger{border-color:rgba(255,77,90,.4); background:linear-gradient(180deg, rgba(255,77,90,.18), rgba(255,77,90,.08));}
+  .btn.success{border-color:rgba(73,255,166,.4); background:linear-gradient(180deg, rgba(73,255,166,.18), rgba(73,255,166,.08));}
+  .btn.warning{border-color:rgba(255,210,77,.45); background:linear-gradient(180deg, rgba(255,210,77,.18), rgba(255,210,77,.08));}
+  .tasks{display:grid; gap:10px}
+  .task{
+    display:flex; gap:12px; align-items:center; padding:10px; border:1px solid rgba(0,212,255,.25);
+    border-radius:10px; background:linear-gradient(180deg, rgba(0,212,255,.08), rgba(0,0,0,.02));
+  }
+  .task input[type="checkbox"]{transform:scale(1.2)}
+  .task.done{opacity:.7; filter:saturate(.9)}
+  .task .title{font-weight:700}
+  .task .tag{font-size:11px; color:var(--muted); border:1px solid rgba(255,255,255,.12); padding:2px 8px; border-radius:6px; margin-left:auto}
+  .photo-area{
+    border:1px dashed rgba(0,212,255,.35); border-radius:12px; padding:12px; text-align:center;
+    background:linear-gradient(180deg, rgba(0,212,255,.06), rgba(0,0,0,.0));
+  }
+  .photo-area img{max-width:100%; border-radius:10px; display:block; margin:10px auto 0}
+  .small{font-size:12px; color:var(--muted)}
+  .footer{opacity:.7; font-size:12px; margin:18px 6px}
+  .system-banner{
+    text-align:center; font-family:"Orbitron"; letter-spacing:1px; font-size:14px; margin-bottom:10px; color:var(--accent)
+  }
+  .glitch{
+    position:relative; display:inline-block
+  }
+  .glitch:after, .glitch:before{
+    content:attr(data-text); position:absolute; left:0; top:0; width:100%;
+    clip-path:inset(0 0 0 0);
+  }
+  .glitch:before{transform:translate(1px,0); text-shadow:-1px 0 #f0f; opacity:.6; animation:gl1 3s infinite}
+  .glitch:after{transform:translate(-1px,0); text-shadow:1px 0 #0ff; opacity:.6; animation:gl2 2.7s infinite}
+  @keyframes gl1{0%{clip-path:inset(0 0 85% 0)} 10%{clip-path:inset(10% 0 65% 0)} 20%{clip-path:inset(40% 0 20% 0)} 30%{clip-path:inset(80% 0 0 0)} 100%{clip-path:inset(0 0 85% 0)}}
+  @keyframes gl2{0%{clip-path:inset(80% 0 0 0)} 10%{clip-path:inset(50% 0 20% 0)} 20%{clip-path:inset(20% 0 60% 0)} 30%{clip-path:inset(0 0 85% 0)} 100%{clip-path:inset(80% 0 0 0)}}
+  .punish{
+    border:1px solid rgba(255,77,90,.45); background:linear-gradient(180deg, rgba(255,77,90,.14), rgba(0,0,0,.05)); border-radius:10px; padding:10px;
+  }
+  .punish h3{color:#ff9aa3}
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .chip{border:1px solid rgba(255,255,255,.12); padding:6px 10px; border-radius:999px; font-size:12px}
+  .input, textarea{
+    width:100%; border:1px solid rgba(255,255,255,.14); border-radius:10px; padding:10px; background:#0a1222; color:var(--text)
+  }
+  .modal{
+    position:fixed; inset:0; background:rgba(5,10,20,.7); display:none; align-items:center; justify-content:center; z-index:10;
+  }
+  .modal .box{max-width:680px; width:92%; background:var(--panel); border:1px solid rgba(0,212,255,.35); border-radius:14px; padding:14px}
+  .row-right{display:flex; gap:10px; justify-content:flex-end}
+  .img-row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap}
+  video{max-width:100%; border-radius:10px; border:1px solid rgba(255,255,255,.1)}
+  canvas{display:none}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="system-title">
+      <span class="glitch" data-text="SYSTEM">SYSTEM</span> : DAILY QUEST
+    </div>
+
+    <div class="panel">
+      <div class="system-banner">[ แจ้งเตือนระบบ ] — ปฏิบัติภารกิจประจำวันให้ครบถ้วน</div>
+      <div class="stats">
+        <div class="stat"><div class="label">วันที่</div><div id="today" class="value">—</div></div>
+        <div class="stat"><div class="label">เลเวล</div><div class="value"><span id="level">1</span></div></div>
+        <div class="stat"><div class="label">EXP</div><div class="expbar"><span id="expbar" style="width:0%"></span></div><div class="row muted"><span id="exptext">0 / 100</span></div></div>
+        <div class="stat"><div class="label">HP</div><div class="hpbar"><span id="hpbar" style="width:100%"></span></div><div class="row muted"><span id="hptext">100 / 100</span></div></div>
+        <div class="stat"><div class="label">Streak</div><div class="value"><span id="streak">0</span> 🔥</div></div>
+      </div>
+      <div class="row" style="margin-top:10px; gap:8px">
+        <button class="btn" id="btnSettings">ตั้งค่าภารกิจ</button>
+        <button class="btn warning" id="btnExport">ส่งออกข้อมูล</button>
+        <button class="btn danger" id="btnReset">ล้างข้อมูลทั้งหมด</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>ภารกิจประจำวันที่ต้องทำวันนี้</h2>
+        <div class="muted" id="questNote">ทำให้ครบ + อัปโหลด/ถ่ายรูปเช็คอิน</div>
+        <div class="tasks" id="taskList"></div>
+
+        <div class="photo-area" style="margin-top:10px">
+          <h3>รูปเช็คอินวันนี้</h3>
+          <div class="img-row">
+            <button class="btn" id="btnCamera">ถ่ายด้วยกล้อง</button>
+            <label class="btn" for="fileInput">อัปโหลดรูป</label>
+            <input id="fileInput" type="file" accept="image/*" capture="user" style="display:none" />
+            <button class="btn danger" id="btnClearPhoto">ล้างรูป</button>
+          </div>
+          <video id="video" playsinline></video>
+          <div class="row-right" style="margin-top:8px">
+            <button class="btn success" id="btnSnap" style="display:none">ถ่ายภาพ</button>
+            <button class="btn danger" id="btnStopCam" style="display:none">ปิดกล้อง</button>
+          </div>
+          <canvas id="canvas"></canvas>
+          <img id="preview" alt="รูปเช็คอิน" />
+          <div class="small">* ระบบบีบอัดรูปอัตโนมัติ (กว้าง ~900px) เพื่อประหยัดพื้นที่</div>
+        </div>
+
+        <div class="row-right" style="margin-top:12px">
+          <button class="btn success" id="btnComplete">ทำภารกิจสำเร็จ</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>บทลงโทษ (ถ้าพลาดเมื่อวาน)</h2>
+        <div class="punish" id="punishBox">
+          <h3>สถานะบทลงโทษ:</h3>
+          <div class="chips" id="punishChips"></div>
+          <div class="small" style="margin-top:6px">ระบบจะเพิ่มบทลงโทษอัตโนมัติ 1 หน่วยต่อวันที่พลาด (ลด HP/EXP + เพิ่มภารกิจพิเศษ)</div>
+        </div>
+
+        <h2 style="margin-top:16px">ประวัติย้อนหลัง (ล่าสุด 7 วัน)</h2>
+        <div id="history" class="tasks"></div>
+      </div>
+    </div>
+
+    <div class="footer">© ระบบจำลองสไตล์ Solo Leveling — ทำเพื่อฝึกวินัยและสุขภาพ (ข้อมูลเก็บในเครื่องคุณเท่านั้น)</div>
+  </div>
+
+  <!-- Modal Settings -->
+  <div class="modal" id="modal">
+    <div class="box">
+      <h2>ตั้งค่าภารกิจประจำวัน</h2>
+      <div class="muted">พิมพ์ภารกิจบรรทัดละ 1 อย่าง (รายการ “ถ่าย/อัปโหลดรูปเช็คอิน” จะถูกบังคับอยู่แล้ว)</div>
+      <textarea id="taskEditor" rows="7" style="margin-top:8px"></textarea>
+      <div class="row" style="margin-top:10px; gap:8px">
+        <div style="flex:1">
+          <label class="muted">EXP ต่อวันเมื่อทำครบ</label>
+          <input class="input" id="expPerDay" type="number" min="10" max="300" step="10" />
+        </div>
+        <div style="flex:1">
+          <label class="muted">ความยากบทลงโทษ (1–5)</label>
+          <input class="input" id="punishScale" type="number" min="1" max="5" />
+        </div>
+      </div>
+      <div class="row-right" style="margin-top:10px">
+        <button class="btn" id="btnClose">ยกเลิก</button>
+        <button class="btn success" id="btnSave">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ====== Utilities ======
+  const $ = sel => document.querySelector(sel);
+  const todayKey = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  };
+  const formatThaiDate = (d=new Date())=>{
+    return d.toLocaleDateString('th-TH', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+  };
+  const clamp=(n,min,max)=>Math.min(Math.max(n,min),max);
+
+  // default config
+  const DEFAULT = {
+    tasks: [
+      "ฝึกควบคุมลูก (Ball Handling) 20 นาที",
+      "คาร์ดิโอ 20 นาที",
+      "เวทเทรนนิ่ง 15 นาที",
+      "ยืดเหยียด 10 นาที"
+      // รูปเช็คอินจะถูกบังคับเพิ่มแยกต่างหาก
+    ],
+    expPerDay: 80,
+    punishScale: 2, // 1-5
+    hpMax: 100,
+    expToLevel: 100
+  };
+
+  // state in localStorage
+  const load = ()=>{
+    try{
+      return JSON.parse(localStorage.getItem('sl_system_state')) || {};
+    }catch(e){ return {}; }
+  };
+  const save = (s)=> localStorage.setItem('sl_system_state', JSON.stringify(s));
+
+  // image compression to dataURL
+  async function fileToDataURLCompressed(file, maxW=900, quality=.8){
+    const img = new Image();
+    const reader = new FileReader();
+    return new Promise((resolve,reject)=>{
+      reader.onload = ()=>{
+        img.onload = ()=>{
+          const ratio = img.width > maxW ? maxW / img.width : 1;
+          const w = Math.round(img.width * ratio);
+          const h = Math.round(img.height * ratio);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ====== State & init ======
+  let state = load();
+  if(!state.config){ state.config = DEFAULT; }
+  if(typeof state.hp !== 'number'){ state.hp = DEFAULT.hpMax; }
+  if(typeof state.exp !== 'number'){ state.exp = 0; }
+  if(typeof state.level !== 'number'){ state.level = 1; }
+  if(typeof state.streak !== 'number'){ state.streak = 0; }
+  if(!state.days){ state.days = {}; }
+  if(typeof state.punishCount !== 'number'){ state.punishCount = 0; }
+  if(!state.lastOpen){ state.lastOpen = todayKey(); }
+
+  // handle missed days -> add punish
+  const today = todayKey();
+  const last = state.lastOpen;
+  if(last !== today){
+    // If missed yesterday(s), apply penalties for each incomplete day
+    const daysBetween = (a,b)=>{
+      const d1 = new Date(a+"T00:00:00");
+      const d2 = new Date(b+"T00:00:00");
+      return Math.round((d2 - d1) / (1000*3600*24));
+    };
+    const gap = Math.max(1, daysBetween(last, today));
+    // check the immediate previous day only for completion; if not done, punish once
+    const prev = new Date(); prev.setDate(prev.getDate()-1);
+    const prevKey = prev.toISOString().slice(0,10);
+    const prevRec = state.days[prevKey];
+    if(!prevRec || !prevRec.completed){
+      state.punishCount += 1; // add one punishment for failing yesterday
+      // reduce HP & EXP as penalty
+      state.hp = clamp(state.hp - 10*state.config.punishScale, 0, DEFAULT.hpMax);
+      state.exp = clamp(state.exp - 10*state.config.punishScale, 0, 999999);
+      state.streak = 0; // streak broken
+    }
+    state.lastOpen = today;
+    save(state);
+  }
+
+  // ensure today's record
+  if(!state.days[today]){
+    state.days[today] = {
+      tasks: state.config.tasks.map(t=>({title:t, done:false})),
+      photo:null,
+      completed:false,
+      ts: Date.now()
+    };
+    save(state);
+  }
+
+  // ====== Render ======
+  const $today = $('#today');
+  const $level = $('#level');
+  const $expbar = $('#expbar');
+  const $exptext = $('#exptext');
+  const $hpbar = $('#hpbar');
+  const $hptext = $('#hptext');
+  const $streak = $('#streak');
+  const $taskList = $('#taskList');
+  const $preview = $('#preview');
+  const $history = $('#history');
+  const $punishChips = $('#punishChips');
+
+  function renderStats(){
+    $today.textContent = formatThaiDate(new Date());
+    $level.textContent = state.level;
+    const expInLevel = state.exp % DEFAULT.expToLevel;
+    const pct = (expInLevel / DEFAULT.expToLevel) * 100;
+    $expbar.style.width = pct.toFixed(1)+'%';
+    $exptext.textContent = `${expInLevel} / ${DEFAULT.expToLevel}`;
+    const hpPct = (state.hp / DEFAULT.hpMax) * 100;
+    $hpbar.style.width = hpPct.toFixed(1)+'%';
+    $hptext.textContent = `${state.hp} / ${DEFAULT.hpMax}`;
+    $streak.textContent = state.streak;
+  }
+
+  function renderPunish(){
+    const list = [];
+    for(let i=0;i<state.punishCount;i++){
+      // build punish items depending on scale
+      const s = state.config.punishScale;
+      const options = [
+        `Burpees ${10*s} ครั้ง`,
+        `Plank ${20*s} วินาที`,
+        `สปรินท์เต็มคอร์ท ${2*s} รอบ`,
+        `Sit-up ${15*s} ครั้ง`,
+        `Push-up ${12*s} ครั้ง`
+      ];
+      list.push(options[i % options.length]);
+    }
+    $punishChips.innerHTML = '';
+    if(list.length===0){
+      $punishChips.innerHTML = `<span class="chip">ไม่มีบทลงโทษค้าง</span>`;
+      return;
+    }
+    list.forEach(x=>{
+      const el = document.createElement('span');
+      el.className = 'chip';
+      el.textContent = x;
+      $punishChips.appendChild(el);
+    });
+  }
+
+  function renderTasks(){
+    const rec = state.days[today];
+    $taskList.innerHTML = '';
+    rec.tasks.forEach((t,idx)=>{
+      const row = document.createElement('div');
+      row.className = 'task' + (t.done ? ' done' : '');
+      row.innerHTML = `
+        <input type="checkbox" ${t.done?'checked':''} data-idx="${idx}" />
+        <div class="title">${t.title}</div>
+        <div class="tag">MAIN</div>
+      `;
+      $taskList.appendChild(row);
+    });
+    // photo task (required)
+    const photoDone = !!rec.photo;
+    const row = document.createElement('div');
+    row.className = 'task' + (photoDone ? ' done' : '');
+    row.innerHTML = `
+      <input type="checkbox" ${photoDone?'checked':''} disabled />
+      <div class="title">ถ่าย/อัปโหลดรูปเช็คอินวันนี้</div>
+      <div class="tag">${photoDone?'OK':'REQUIRED'}</div>
+    `;
+    $taskList.appendChild(row);
+  }
+
+  function renderPhoto(){
+    const rec = state.days[today];
+    if(rec.photo){
+      $preview.src = rec.photo;
+      $preview.style.display='block';
+    }else{
+      $preview.removeAttribute('src');
+      $preview.style.display='none';
+    }
+  }
+
+  function renderHistory(){
+    $history.innerHTML = '';
+    for(let i=0;i<7;i++){
+      const d = new Date(); d.setDate(d.getDate()-i);
+      const k = d.toISOString().slice(0,10);
+      const r = state.days[k];
+      const item = document.createElement('div');
+      item.className='task';
+      const label = d.toLocaleDateString('th-TH',{ weekday:'short', day:'2-digit', month:'short' });
+      const status = r ? (r.completed ? 'สำเร็จ' : 'ไม่ครบ') : '—';
+      item.innerHTML = `
+        <div class="title">${label}</div>
+        <div class="tag">${status}</div>
+      `;
+      $history.appendChild(item);
+    }
+  }
+
+  function renderAll(){
+    renderStats();
+    renderPunish();
+    renderTasks();
+    renderPhoto();
+    renderHistory();
+  }
+
+  // ====== Interactions ======
+  // toggle task
+  $taskList.addEventListener('change', (e)=>{
+    if(e.target && e.target.matches('input[type="checkbox"][data-idx]')){
+      const idx = Number(e.target.getAttribute('data-idx'));
+      state.days[today].tasks[idx].done = e.target.checked;
+      save(state);
+      renderTasks();
+    }
+  });
+
+  // complete day
+  $('#btnComplete').addEventListener('click', ()=>{
+    const rec = state.days[today];
+    const allDone = rec.tasks.every(t=>t.done) && !!rec.photo;
+    if(!allDone){
+      alert('ยังทำภารกิจไม่ครบ หรือยังไม่ได้อัปโหลด/ถ่ายรูปเช็คอิน');
+      return;
+    }
+    if(rec.completed){
+      alert('วันนี้บันทึกสำเร็จแล้ว');
+      return;
+    }
+    rec.completed = true;
+    // resolve punish first
+    if(state.punishCount>0){
+      // clear one punishment when complete
+      state.punishCount = Math.max(0, state.punishCount - 1);
+      // small heal
+      state.hp = clamp(state.hp + 5*state.config.punishScale, 0, DEFAULT.hpMax);
+    }
+    // award exp
+    state.exp += state.config.expPerDay;
+    // level up loop
+    while((state.exp % DEFAULT.expToLevel) === 0 && state.exp>0){
+      state.level += 1;
+      state.hp = DEFAULT.hpMax; // full heal on level up
+      alert('LEVEL UP! เลเวลปัจจุบัน: ' + state.level);
+      break; // keep it simple (1 level per day)
+    }
+    // streak
+    state.streak += 1;
+    save(state);
+    renderAll();
+    alert('ภารกิจวันนี้สำเร็จ! +EXP');
+  });
+
+  // file upload
+  $('#fileInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const data = await fileToDataURLCompressed(file);
+    state.days[today].photo = data;
+    save(state);
+    renderPhoto();
+    renderTasks();
+  });
+
+  // clear photo
+  $('#btnClearPhoto').addEventListener('click', ()=>{
+    state.days[today].photo = null;
+    save(state);
+    renderPhoto();
+    renderTasks();
+  });
+
+  // Camera
+  let mediaStream = null;
+  const video = $('#video');
+  const canvas = $('#canvas');
+  async function startCamera(){
+    try{
+      mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' }, audio:false });
+      video.srcObject = mediaStream;
+      video.style.display='block';
+      $('#btnSnap').style.display='inline-flex';
+      $('#btnStopCam').style.display='inline-flex';
+      await video.play();
+    }catch(err){
+      alert('ไม่สามารถเปิดกล้องได้: ' + err.message);
+    }
+  }
+  function stopCamera(){
+    if(mediaStream){
+      mediaStream.getTracks().forEach(t=>t.stop());
+      mediaStream = null;
+    }
+    video.pause();
+    video.removeAttribute('srcObject');
+    video.style.display='none';
+    $('#btnSnap').style.display='none';
+    $('#btnStopCam').style.display='none';
+  }
+  $('#btnCamera').addEventListener('click', startCamera);
+  $('#btnStopCam').addEventListener('click', stopCamera);
+  $('#btnSnap').addEventListener('click', ()=>{
+    const w = Math.min(900, video.videoWidth);
+    const scale = w / video.videoWidth;
+    const h = Math.round(video.videoHeight * scale);
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    const data = canvas.toDataURL('image/jpeg', .8);
+    state.days[today].photo = data;
+    save(state);
+    renderPhoto();
+    renderTasks();
+    stopCamera();
+  });
+
+  // Settings modal
+  const modal = $('#modal');
+  $('#btnSettings').addEventListener('click', ()=>{
+    $('#taskEditor').value = state.config.tasks.join('\n');
+    $('#expPerDay').value = state.config.expPerDay;
+    $('#punishScale').value = state.config.punishScale;
+    modal.style.display='flex';
+  });
+  $('#btnClose').addEventListener('click', ()=> modal.style.display='none');
+  $('#btnSave').addEventListener('click', ()=>{
+    const lines = $('#taskEditor').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    state.config.tasks = lines.length ? lines : DEFAULT.tasks;
+    state.config.expPerDay = clamp(parseInt($('#expPerDay').value||DEFAULT.expPerDay), 10, 300);
+    state.config.punishScale = clamp(parseInt($('#punishScale').value||DEFAULT.punishScale), 1, 5);
+    // reset today's tasks to new list if not completed yet
+    if(!state.days[today].completed){
+      state.days[today].tasks = state.config.tasks.map(t=>({title:t, done:false}));
+    }
+    save(state);
+    modal.style.display='none';
+    renderAll();
+  });
+
+  // Export/Reset
+  $('#btnExport').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `solo-system-${today}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  $('#btnReset').addEventListener('click', ()=>{
+    if(confirm('ล้างข้อมูลทั้งหมด? ภาพและสถิติจะหายถาวร')){
+      localStorage.removeItem('sl_system_state');
+      location.reload();
+    }
+  });
+
+  // initial render
+  renderAll();
+
+  // Optional: notifications permission
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+})();
+</script>
+</body>
+</html>
